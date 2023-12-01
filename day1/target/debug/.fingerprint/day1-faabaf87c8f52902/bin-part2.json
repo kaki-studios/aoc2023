@@ -1,0 +1,1 @@
+{"rustc":16895609601713598366,"features":"[]","target":7881067614324165633,"profile":13126374248311259211,"path":2521721139792727009,"deps":[],"local":[{"CheckDepInfo":{"dep_info":"debug/.fingerprint/day1-faabaf87c8f52902/dep-bin-part2"}}],"rustflags":["-C","link-arg=-fuse-ld=/usr/bin/mold"],"metadata":7797948686568424061,"config":16520146531172537597,"compile_kind":0}
