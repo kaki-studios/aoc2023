@@ -1,6 +1,5 @@
 # Advent Of Code 2023
-blazigly fast🦀🚀
-but unoptimized
+blazigly fast🦀🚀, but unoptimized
 
 usage:
 cd into whatever day and do:
