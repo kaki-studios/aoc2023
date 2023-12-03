@@ -1,4 +1,4 @@
-use std::{i32, num::ParseIntError, ops::Range};
+use std::{i32, ops::Range};
 
 fn main() {
     let test_input = "467..114..
@@ -24,47 +24,109 @@ fn main() {
 
 fn answer(input: &str) -> i32 {
     let mut sum = 0;
+    let mut num_list: Vec<Number> = vec![];
+    let mut skips = 0;
     let line_len = input.lines().collect::<Vec<&str>>().first().unwrap().len();
-    println!("{}", line_len);
-    let mut iterator = input.chars();
-    let mut index = 0;
-    while let Some(single) = iterator.next() {
-        println!("{}", single);
-        if single.is_digit(10) {
-            let digits = &input.chars().collect::<Vec<char>>()[index + 1..index + 3];
-            println!("first is {}", digits.iter().collect::<String>());
-            let mut num = Number::new(digits.iter().collect(), false);
-            match num.to_i32() {
-                Ok(int) => match int {
-                    100.. => {
-                        println!("3 digits: {}", int);
-                    }
-                    _ => {
-                        println!("2 digits: {}", int);
-                    }
-                },
-                Err(_) => println!("ParseIntError"),
-            }
-
-            // for (y, character) in single.iter().enumerate() {
-            //     if let Some(symbol) = input.chars().nth(index + y) {
-            //         if symbol == *character {
-            //             println!("good");
-            //         }
-            //     }
-            // }
+    for (index, single) in input.chars().collect::<Vec<char>>().windows(3).enumerate() {
+        if skips > 0 {
+            skips -= 1;
+            continue;
+        }
+        if single[0].is_digit(10) {
+            let digits = single.iter().collect::<String>().to_owned();
+            let num = Number::new(digits, index, false);
             // if let Some(symbol) = input.chars().nth(index + line_len) {
             //     if !symbol.is_digit(10) {
             //         if symbol != '.' {
             //             sum += num.to_i32();
             //             num.is_valid = true;
+            //             num_list.push(num.clone());
             //         }
             //     }
             // }
-            iterator.nth(index + 3);
-            continue;
+            skips += num.digits.len();
+            num_list.push(num);
         }
-        index += 1;
+    }
+    'num: for mut num in num_list {
+        // sum += num.to_i32();
+        // println!("{}", num.digits);
+        let vec = &input.chars().collect::<Vec<char>>();
+        for (index, _value) in vec[num.range.clone()].iter().enumerate() {
+            // ###
+            // #0#
+            // #X#
+            if index + num.range.start + line_len < vec.len() {
+                if !vec[index + num.range.start + line_len].is_digit(10)
+                    && vec[index + num.range.start + line_len] != '.'
+                {
+                    num.is_valid = true;
+                    sum += to_i32(num.digits);
+                    continue 'num;
+                }
+            }
+            // #X#
+            // #0#
+            // ###
+            if index + num.range.start >= line_len {
+                if !vec[index + num.range.start - line_len].is_digit(10)
+                    && vec[index + num.range.start - line_len] != '.'
+                {
+                    num.is_valid = true;
+                    sum += to_i32(num.digits);
+                    continue 'num;
+                }
+            }
+            // ###
+            // #0#
+            // ##X
+            if index + num.range.start + line_len + 1 < vec.len() {
+                if !vec[index + num.range.start + line_len + 1].is_digit(10)
+                    && vec[index + num.range.start + line_len + 1] != '.'
+                {
+                    num.is_valid = true;
+                    sum += to_i32(num.digits);
+                    continue 'num;
+                }
+            }
+            // ###
+            // #0#
+            // X##
+            if index + num.range.start + line_len - 1 < vec.len() {
+                if !vec[index + line_len + num.range.start - 1].is_digit(10)
+                    && vec[index + num.range.start + line_len - 1] != '.'
+                {
+                    num.is_valid = true;
+                    sum += to_i32(num.digits);
+                    continue 'num;
+                }
+            }
+            // X##
+            // #0#
+            // ###
+            if index + num.range.start > line_len {
+                if !vec[index + num.range.start - line_len - 1].is_digit(10)
+                    && vec[index + num.range.start - line_len - 1] != '.'
+                {
+                    num.is_valid = true;
+                    sum += to_i32(num.digits);
+                    continue 'num;
+                }
+            }
+            // ##X
+            // #0#
+            // ###
+            if index + num.range.start >= line_len + 1 {
+                if !vec[index + num.range.start - line_len + 1].is_digit(10)
+                    && vec[index + num.range.start - line_len + 1] != '.'
+                {
+                    num.is_valid = true;
+                    sum += to_i32(num.digits);
+                    println!("{}", vec[index + num.range.start - line_len + 1]);
+                    continue 'num;
+                }
+            }
+        }
     }
     sum
 }
@@ -72,28 +134,28 @@ fn answer(input: &str) -> i32 {
 #[derive(Clone)]
 struct Number {
     digits: String,
+    range: Range<usize>,
     is_valid: bool,
 }
 
 impl Number {
-    fn new(digits: String, is_valid: bool) -> Number {
-        Number { digits, is_valid }
-    }
-    fn to_i32(&self) -> Result<i32, ParseIntError> {
-        let mut ret: String = String::default();
-        for i in self.digits.chars() {
-            if i.is_digit(10) {
-                ret += &i.to_string();
-            }
+    fn new(raw_digits: String, range_start: usize, is_valid: bool) -> Number {
+        let digits: String = raw_digits.chars().filter(|ch| ch.is_digit(10)).collect();
+        let range = range_start..range_start + digits.len();
+        Number {
+            digits,
+            range,
+            is_valid,
         }
-        println!("{}", ret);
-        ret.parse::<i32>()
     }
 }
 
-fn is_symbol(character: char) -> bool {
-    if character.is_digit(10) || character == '.' {
-        return false;
+fn to_i32(string: String) -> i32 {
+    let mut ret: String = String::default();
+    for i in string.chars() {
+        if i.is_digit(10) {
+            ret += &i.to_string();
+        }
     }
-    true
+    ret.parse::<i32>().unwrap()
 }
