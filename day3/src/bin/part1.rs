@@ -1,3 +1,10 @@
+//TODO: refactor:
+//use 2d char array
+//first create 2d char array
+//loop through it with windows to find all nums
+//later, iterate through all nums and validate them
+//(much easier with 2d char array)
+
 use std::{i32, ops::Range};
 
 fn main() {
