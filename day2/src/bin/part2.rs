@@ -15,7 +15,7 @@ fn main() {
 }
 
 fn answer(input: &str) -> i32 {
-    let mut sum = 0;
+    let mut result = 0;
     for line in input.lines() {
         let mut min_red = 0;
         let mut min_green = 0;
@@ -83,7 +83,7 @@ fn answer(input: &str) -> i32 {
                 }
             }
         }
-        sum += min_green * min_red * min_blue;
+        result += min_green * min_red * min_blue;
     }
-    sum
+    result
 }
