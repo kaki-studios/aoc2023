@@ -5,7 +5,11 @@
 //later, iterate through all nums and validate them
 //(much easier with 2d char array)
 
-use std::{i32, ops::Range};
+use std::{
+    i32,
+    ops::{Index, Range},
+    vec,
+};
 
 fn main() {
     let test_input = "467..114..
@@ -32,29 +36,67 @@ fn main() {
 fn answer(input: &str) -> i32 {
     let mut sum = 0;
     let mut num_list: Vec<Number> = vec![];
+    let line_count: usize = input.lines().count();
     let mut skips = 0;
-    let line_len = input.lines().collect::<Vec<&str>>().first().unwrap().len();
-    for (index, single) in input.chars().collect::<Vec<char>>().windows(3).enumerate() {
-        if skips > 0 {
-            skips -= 1;
-            continue;
-        }
-        if single[0].is_digit(10) {
-            let digits = single.iter().collect::<String>().to_owned();
-            let num = Number::new(digits, index, false);
-            // if let Some(symbol) = input.chars().nth(index + line_len) {
-            //     if !symbol.is_digit(10) {
-            //         if symbol != '.' {
-            //             sum += num.to_i32();
-            //             num.is_valid = true;
-            //             num_list.push(num.clone());
-            //         }
-            //     }
-            // }
-            skips += num.digits.len();
-            num_list.push(num);
+    let line_len: usize = input.lines().collect::<Vec<&str>>().first().unwrap().len();
+    let mut char_vec: Vec<Vec<char>> = vec![];
+    for (i, val) in input.lines().enumerate() {
+        for (y, value) in val.chars().enumerate() {
+            char_vec[i].insert(y, value);
         }
     }
+
+    for (i, line) in char_vec.iter().enumerate() {
+        for (y, character) in line.windows(3).enumerate() {
+            if skips > 0 {
+                skips -= 1;
+                continue;
+            }
+            let is_top = i == 0;
+            let is_bottom = i == line_count - 1;
+            let is_right = y == line_len - 1;
+            let is_left = y == 0;
+            if character[0].is_digit(10) {
+                let num = Number::new(character.iter().collect(), 0, false);
+                let number = to_i32(num.digits);
+                //TODO: check all digits, not just the first one
+                if !is_top {
+                    if !char_vec[i - 1].index(y).is_digit(10) && char_vec[i - 1].index(y) != '.' {
+                        sum += number;
+                        continue;
+                    }
+                    if !is_right {
+                        if !char_vec[i - 1].index(y + 1).is_digit(10)
+                            && char_vec[i - 1].index(y + 1) != '.'
+                        {
+                            sum += number;
+                            continue;
+                        }
+                    }
+                    if !is_right {}
+                }
+                if !is_bottom {
+                    if !char_vec[i + 1].index(y).is_digit(10) && char_vec[i + 1].index(y) != '.' {
+                        sum += number;
+                        continue;
+                    }
+                }
+                if !is_right {
+                    if !char_vec[i].index(y + 1).is_digit(10) && char_vec[i].index(y + 1) != '.' {
+                        sum += number;
+                        continue;
+                    }
+                }
+                if !is_left {
+                    if !char_vec[i].index(y - 1).is_digit(10) && char_vec[i].index(y + 1) != '.' {
+                        sum += number;
+                        continue;
+                    }
+                }
+            }
+        }
+    }
+
     'num: for mut num in num_list {
         // sum += num.to_i32();
         // println!("{}", num.digits);
