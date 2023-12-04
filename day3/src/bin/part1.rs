@@ -6,10 +6,21 @@
 //(much easier with 2d char array)
 
 use std::{
+    char,
+    collections::{BTreeMap, HashMap},
     i32,
     ops::{Index, Range},
-    vec,
+    u32, vec,
 };
+
+use itertools::Itertools;
+
+#[derive(Debug)]
+enum Character {
+    Number(u32),
+    Empty,
+    Symbol(char),
+}
 
 fn main() {
     let test_input = "467..114..
@@ -35,176 +46,94 @@ fn main() {
 
 fn answer(input: &str) -> i32 {
     let mut sum = 0;
-    let mut num_list: Vec<Number> = vec![];
-    let line_count: usize = input.lines().count();
-    let mut skips = 0;
-    let line_len: usize = input.lines().collect::<Vec<&str>>().first().unwrap().len();
-    let mut char_vec: Vec<Vec<char>> = vec![];
-    for (i, val) in input.lines().enumerate() {
-        for (y, value) in val.chars().enumerate() {
-            char_vec[i].insert(y, value);
-        }
-    }
-
-    for (i, line) in char_vec.iter().enumerate() {
-        for (y, character) in line.windows(3).enumerate() {
-            if skips > 0 {
-                skips -= 1;
-                continue;
-            }
-            let is_top = i == 0;
-            let is_bottom = i == line_count - 1;
-            let is_right = y == line_len - 1;
-            let is_left = y == 0;
-            if character[0].is_digit(10) {
-                let num = Number::new(character.iter().collect(), 0, false);
-                let number = to_i32(num.digits);
-                //TODO: check all digits, not just the first one
-                if !is_top {
-                    if !char_vec[i - 1].index(y).is_digit(10) && char_vec[i - 1].index(y) != '.' {
-                        sum += number;
-                        continue;
-                    }
-                    if !is_right {
-                        if !char_vec[i - 1].index(y + 1).is_digit(10)
-                            && char_vec[i - 1].index(y + 1) != '.'
-                        {
-                            sum += number;
-                            continue;
+    let char_map = input
+        .lines()
+        .enumerate()
+        .flat_map(|(y, line)| {
+            line.chars().enumerate().map(move |(x, character)| {
+                (
+                    (y as i32, x as i32),
+                    match character {
+                        '.' => Character::Empty,
+                        c if c.is_ascii_digit() => {
+                            Character::Number(c.to_digit(10).expect("shouldnt happen!"))
                         }
+                        c => Character::Symbol(c),
+                    },
+                )
+            })
+        })
+        .collect::<BTreeMap<(i32, i32), Character>>();
+    let mut numbers: Vec<Vec<((i32, i32), u32)>> = vec![];
+    for ((y, x), value) in char_map.iter() {
+        if let Character::Number(num) = value {
+            match numbers.last() {
+                Some(vec) => {
+                    let last_num = vec.last();
+                    match last_num {
+                        Some(((last_num_x, _), _)) => {
+                            if last_num_x + 1 == *x {
+                                let last = numbers.iter_mut().last().expect("bad");
+                                last.push(((*x, *y), *num));
+                            } else {
+                                numbers.push(vec![((*x, *y), *num)]);
+                            }
+                        }
+                        None => unimplemented!("not good!"),
                     }
-                    if !is_right {}
                 }
-                if !is_bottom {
-                    if !char_vec[i + 1].index(y).is_digit(10) && char_vec[i + 1].index(y) != '.' {
-                        sum += number;
-                        continue;
-                    }
-                }
-                if !is_right {
-                    if !char_vec[i].index(y + 1).is_digit(10) && char_vec[i].index(y + 1) != '.' {
-                        sum += number;
-                        continue;
-                    }
-                }
-                if !is_left {
-                    if !char_vec[i].index(y - 1).is_digit(10) && char_vec[i].index(y + 1) != '.' {
-                        sum += number;
-                        continue;
-                    }
-                }
+                None => numbers.push(vec![((*x, *y), *num)]),
             }
+            // println!("{x}, {y}");
         }
     }
 
-    'num: for mut num in num_list {
-        // sum += num.to_i32();
-        // println!("{}", num.digits);
-        let vec = &input.chars().collect::<Vec<char>>();
-        for (index, _value) in vec[num.range.clone()].iter().enumerate() {
-            // ###
-            // #0#
-            // #X#
-            if index + num.range.start + line_len < vec.len() {
-                if !vec[index + num.range.start + line_len].is_digit(10)
-                    && vec[index + num.range.start + line_len] != '.'
-                {
-                    num.is_valid = true;
-                    sum += to_i32(num.digits);
-                    continue 'num;
-                }
+    for num_list in numbers {
+        let positions = [
+            (1, 0),
+            (1, -1),
+            (0, -1),
+            (-1, -1),
+            (-1, 0),
+            (-1, 1),
+            (0, 1),
+            (1, 1),
+        ];
+        let num_positions: Vec<(i32, i32)> = num_list
+            .iter()
+            .map(|((y, x), _)| (*x as i32, *y as i32))
+            .collect();
+        let pos_to_check: Vec<(i32, i32)> = num_list
+            .iter()
+            .flat_map(|(pos, _)| {
+                positions.iter().map(|outer_pos| {
+                    //outer_pos.x + pos.x, .y + .x
+                    (outer_pos.0 + pos.1 as i32, outer_pos.1 + pos.0 as i32)
+                })
+            })
+            .unique()
+            .filter(|num| !num_positions.contains(num))
+            .collect();
+
+        let is_part_number = pos_to_check.iter().any(|pos| {
+            let value = char_map.get(&(pos));
+            if let Some(Character::Symbol(_)) = value {
+                true
+            } else {
+                false
             }
-            // #X#
-            // #0#
-            // ###
-            if index + num.range.start >= line_len {
-                if !vec[index + num.range.start - line_len].is_digit(10)
-                    && vec[index + num.range.start - line_len] != '.'
-                {
-                    num.is_valid = true;
-                    sum += to_i32(num.digits);
-                    continue 'num;
-                }
-            }
-            // ###
-            // #0#
-            // ##X
-            if index + num.range.start + line_len + 1 < vec.len() {
-                if !vec[index + num.range.start + line_len + 1].is_digit(10)
-                    && vec[index + num.range.start + line_len + 1] != '.'
-                {
-                    num.is_valid = true;
-                    sum += to_i32(num.digits);
-                    continue 'num;
-                }
-            }
-            // ###
-            // #0#
-            // X##
-            if index + num.range.start + line_len - 1 < vec.len() {
-                if !vec[index + line_len + num.range.start - 1].is_digit(10)
-                    && vec[index + num.range.start + line_len - 1] != '.'
-                {
-                    num.is_valid = true;
-                    sum += to_i32(num.digits);
-                    continue 'num;
-                }
-            }
-            // X##
-            // #0#
-            // ###
-            if index + num.range.start > line_len {
-                if !vec[index + num.range.start - line_len - 1].is_digit(10)
-                    && vec[index + num.range.start - line_len - 1] != '.'
-                {
-                    num.is_valid = true;
-                    sum += to_i32(num.digits);
-                    continue 'num;
-                }
-            }
-            // ##X
-            // #0#
-            // ###
-            if index + num.range.start >= line_len + 1 {
-                if !vec[index + num.range.start - line_len + 1].is_digit(10)
-                    && vec[index + num.range.start - line_len + 1] != '.'
-                {
-                    num.is_valid = true;
-                    sum += to_i32(num.digits);
-                    println!("{}", vec[index + num.range.start - line_len + 1]);
-                    continue 'num;
-                }
-            }
+        });
+
+        if is_part_number {
+            sum += num_list
+                .iter()
+                .map(|(_, num)| num.to_string())
+                .collect::<String>()
+                .parse::<u32>()
+                .unwrap()
         }
     }
-    sum
-}
-
-#[derive(Clone)]
-struct Number {
-    digits: String,
-    range: Range<usize>,
-    is_valid: bool,
-}
-
-impl Number {
-    fn new(raw_digits: String, range_start: usize, is_valid: bool) -> Number {
-        let digits: String = raw_digits.chars().filter(|ch| ch.is_digit(10)).collect();
-        let range = range_start..range_start + digits.len();
-        Number {
-            digits,
-            range,
-            is_valid,
-        }
-    }
-}
-
-fn to_i32(string: String) -> i32 {
-    let mut ret: String = String::default();
-    for i in string.chars() {
-        if i.is_digit(10) {
-            ret += &i.to_string();
-        }
-    }
-    ret.parse::<i32>().unwrap()
+    //now we have map: the map of the entire input
+    //and numbers: a 2d vec of numbers to their indices, basically all numbers in sequence
+    sum.try_into().unwrap()
 }
