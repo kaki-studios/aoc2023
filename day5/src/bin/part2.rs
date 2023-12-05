@@ -1,3 +1,4 @@
+use indicatif::ParallelProgressIterator;
 use rayon::prelude::*;
 use std::{ops::Range, u64};
 
@@ -72,15 +73,21 @@ fn answer(input: &str) -> u64 {
         .map(|range| range.1[0]..range.1[0] + range.1[1])
         .collect();
     // println!("{:?}", seed_ranges);
-    let mut seeds: Vec<u64> = vec![];
-    for range in seed_ranges {
-        for i in range {
-            seeds.push(i);
-        }
-    }
-    // println!("{:?}", seeds);
+    let mut seeds: Vec<u64> = seed_ranges
+        .par_iter()
+        .progress()
+        .map(|range| range.clone().collect::<Vec<u64>>())
+        .reduce(
+            || vec![],
+            |mut acc, range_vec| {
+                acc.extend(range_vec);
+                acc
+            },
+        )
+        .into_iter()
+        .collect();
 
-    // println!("{:?}", seeds);
+    println!("done!");
     let mut maps: Vec<Vec<Line>> = vec![];
     // maps.push(vec![]);
     for (i, mut map_str) in input.split("\n\n").enumerate() {
@@ -126,17 +133,3 @@ fn answer(input: &str) -> u64 {
         .min()
         .unwrap()
 }
-
-// fn process(mut seed: u64, maps: Vec<Vec<Line>>) -> u64 {
-//     'map: for map in maps {
-//         for line in map {
-//             if line.source_range.contains(&seed) {
-//                 seed = seed - line.source_range.start + line.destination_range.start;
-//                 continue 'map;
-//             } else {
-//                 continue;
-//             }
-//         }
-//     }
-//     seed
-// }
