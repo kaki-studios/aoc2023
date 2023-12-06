@@ -40,12 +40,12 @@ humidity-to-location map:
     let result = answer(test_input);
     let map: Vec<Line> = vec![
         Line {
-            source_range: 0..5,
-            destination_range: 10..15,
+            range: 0..5,
+            delta: 5,
         },
         Line {
-            source_range: 10..12,
-            destination_range: 12..14,
+            range: 10..12,
+            delta: 2,
         },
     ];
     let seed_range: Range<i64> = 0..20;
@@ -69,8 +69,8 @@ humidity-to-location map:
 
 #[derive(Debug, Clone)]
 struct Line {
-    destination_range: Range<i64>,
-    source_range: Range<i64>,
+    range: Range<i64>,
+    delta: i64,
 }
 
 fn answer(input: &str) -> i64 {
@@ -88,7 +88,6 @@ fn answer(input: &str) -> i64 {
     let seed_ranges: Vec<Range<i64>> = seed_ranges_raw
         .chunks(2)
         .enumerate()
-        .filter(|(i, _)| i % 2 == 0)
         .map(|range| range.1[0]..range.1[0] + range.1[1])
         .collect();
 
@@ -111,17 +110,45 @@ fn answer(input: &str) -> i64 {
                 .collect::<Vec<i64>>();
             assert_eq!(3, nums.len());
             let num_line = Line {
-                destination_range: nums[0]..nums[0] + nums[2],
-                source_range: nums[1]..nums[1] + nums[2],
+                delta: nums[0] - nums[1],
+                range: nums[1]..nums[1] + nums[2],
             };
             maps[i - 1].push(num_line);
         }
     }
-    process(seed_ranges, maps)
-        .iter()
-        .map(|range| range.start)
-        .min()
-        .unwrap()
+    maps.iter_mut()
+        .for_each(|map| map.sort_by_key(|r| r.range.start));
+
+    let mut location = 1_i64;
+    loop {
+        let mut cur = location;
+        for map in maps.iter().rev() {
+            cur = reverse_lookup(map, cur);
+        }
+        for sr in &seed_ranges {
+            if sr.contains(&cur) {
+                return location;
+            }
+        }
+        location += 1;
+    }
+
+    // process(seed_ranges, maps)
+    //     .iter()
+    //     .map(|range| range.start)
+    //     .min()
+    //     .unwrap()
+}
+
+fn reverse_lookup(map: &Vec<Line>, val: i64) -> i64 {
+    for map in map {
+        let rev = val - map.delta;
+        if map.range.contains(&rev) {
+            return rev;
+        }
+    }
+
+    val
 }
 
 fn process(seed_ranges: Vec<Range<i64>>, maps: Vec<Vec<Line>>) -> Vec<Range<i64>> {
@@ -157,34 +184,26 @@ fn split(seed_range: &Range<i64>, map: Vec<Line>) -> Vec<Range<i64>> {
     let mut result: Vec<Range<i64>> = vec![];
     let mut prev: Vec<Range<i64>> = vec![];
     map.iter().enumerate().for_each(|(i, line)| {
-        let mut intersection = intersect(&line.source_range, seed_range);
+        let mut intersection = intersect(&line.range, seed_range);
         if i != 0 && prev.len() > 1 {
             intersection = prev.pop().unwrap();
         }
 
         if !intersection.is_empty() {
-            if intersection.start == line.source_range.start {
-                if !(intersection.end..line.source_range.end).is_empty() {
-                    prev.push(intersection.end..line.source_range.end);
+            if intersection.start == line.range.start {
+                if !(intersection.end..line.range.end).is_empty() {
+                    prev.push(intersection.end..line.range.end);
                     println!("true");
                 }
-            } else if intersection.end == line.source_range.end {
-                if !(line.source_range.start..intersection.start).is_empty() {
-                    prev.push(line.source_range.start..intersection.start);
+            } else if intersection.end == line.range.end {
+                if !(line.range.start..intersection.start).is_empty() {
+                    prev.push(line.range.start..intersection.start);
                     println!("also true");
                 }
             }
             //shift the intersection
-            match line.source_range.start < line.destination_range.start {
-                true => {
-                    intersection.start += line.destination_range.start - line.source_range.start;
-                    intersection.end += line.destination_range.end - line.source_range.end;
-                }
-                false => {
-                    intersection.start -= line.source_range.start - line.destination_range.start;
-                    intersection.end -= line.source_range.end - line.destination_range.end;
-                }
-            }
+            intersection.start += line.delta;
+            intersection.end += line.delta;
             prev.push(intersection);
         }
     });
