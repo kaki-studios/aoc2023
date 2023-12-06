@@ -1,6 +1,6 @@
 // use indicatif::ParallelProgressIterator;
-use rayon::prelude::*;
-use std::{ops::Range, u64};
+use rayon::{iter::plumbing::UnindexedProducer, prelude::*};
+use std::{i64, ops::Range};
 
 fn main() {
     let test_input = "seeds: 79 14 55 13
@@ -38,7 +38,7 @@ humidity-to-location map:
 56 93 4";
 
     let result = answer(test_input);
-    let map: Vec<Vec<Line>> = vec![vec![
+    let map: Vec<Line> = vec![
         Line {
             source_range: 0..5,
             destination_range: 10..15,
@@ -47,12 +47,17 @@ humidity-to-location map:
             source_range: 10..12,
             destination_range: 12..14,
         },
-    ]];
-    let seed_ranges: Vec<Range<u64>> = vec![0..15];
-    let test = process(seed_ranges, map);
-    println!("{:?}", test);
-    //does not correctly map if seed isnt in map (should return the original)
+    ];
+    let seed_range: Range<i64> = 0..20;
+    let split_test = split(&seed_range, map);
+    println!(
+        "split seeds test: {:?} \nshould print [10..15, 5..10, 12..14, 14..20]",
+        split_test
+    );
+    //doesnt work
 
+    //does not correctly map if seed isnt in map (should return the original)
+    //46
     if result == 46 {
         println!("test success! Here\'s the answer:");
         println!("{}", answer(include_str!("../../input.txt")))
@@ -64,12 +69,12 @@ humidity-to-location map:
 
 #[derive(Debug, Clone)]
 struct Line {
-    destination_range: Range<u64>,
-    source_range: Range<u64>,
+    destination_range: Range<i64>,
+    source_range: Range<i64>,
 }
 
-fn answer(input: &str) -> u64 {
-    let seed_ranges_raw: Vec<u64> = input
+fn answer(input: &str) -> i64 {
+    let seed_ranges_raw: Vec<i64> = input
         .lines()
         .collect::<Vec<&str>>()
         .first()
@@ -78,28 +83,14 @@ fn answer(input: &str) -> u64 {
         .last()
         .unwrap()
         .split_whitespace()
-        .map(|num| num.parse::<u64>().unwrap())
+        .map(|num| num.parse::<i64>().unwrap())
         .collect();
-    let seed_ranges: Vec<Range<u64>> = seed_ranges_raw
-        .windows(2)
+    let seed_ranges: Vec<Range<i64>> = seed_ranges_raw
+        .chunks(2)
         .enumerate()
         .filter(|(i, _)| i % 2 == 0)
         .map(|range| range.1[0]..range.1[0] + range.1[1])
         .collect();
-    // OLD CODE
-    // let mut seeds: Vec<u64> = seed_ranges
-    //     .par_iter()
-    //     .progress()
-    //     .map(|range| range.clone().collect::<Vec<u64>>())
-    //     .reduce(
-    //         || vec![],
-    //         |mut acc, range_vec| {
-    //             acc.extend(range_vec);
-    //             acc
-    //         },
-    //     )
-    //     .into_iter()
-    //     .collect();
 
     // println!("done!");
     let mut maps: Vec<Vec<Line>> = vec![];
@@ -116,8 +107,8 @@ fn answer(input: &str) -> u64 {
         for line in map_str.lines() {
             let nums = line
                 .split_whitespace()
-                .map(|string| string.trim().parse::<u64>().unwrap())
-                .collect::<Vec<u64>>();
+                .map(|string| string.trim().parse::<i64>().unwrap())
+                .collect::<Vec<i64>>();
             assert_eq!(3, nums.len());
             let num_line = Line {
                 destination_range: nums[0]..nums[0] + nums[2],
@@ -131,35 +122,13 @@ fn answer(input: &str) -> u64 {
         .map(|range| range.start)
         .min()
         .unwrap()
-    //returns 0 on real input!
-
-    // OLD CODE
-    // *seeds
-    //     .par_iter_mut()
-    //     .map(|seed| {
-    //         'map: for map in &maps {
-    //             for line in map {
-    //                 if line.source_range.contains(&seed) {
-    //                     *seed = (*seed - &line.source_range.start) + &line.destination_range.start;
-    //                     continue 'map;
-    //                 } else {
-    //                     continue;
-    //                 }
-    //             }
-    //         }
-    //         *seed
-    //     })
-    //     .collect::<Vec<u64>>()
-    //     .iter()
-    //     .min()
-    //     .unwrap()
 }
 
-fn process(seed_ranges: Vec<Range<u64>>, maps: Vec<Vec<Line>>) -> Vec<Range<u64>> {
-    // let mut answer: Vec<Range<u64>> = vec![];
+fn process(seed_ranges: Vec<Range<i64>>, maps: Vec<Vec<Line>>) -> Vec<Range<i64>> {
+    // let mut answer: Vec<Range<i64>> = vec![];
     maps.iter()
         .map(|map| {
-            let mut answer: Vec<Range<u64>> = vec![];
+            let mut answer: Vec<Range<i64>> = vec![];
             seed_ranges.iter().for_each(|seed_range| {
                 let intersections = split(seed_range, map.to_vec());
                 if intersections.len() > 0 {
@@ -174,7 +143,7 @@ fn process(seed_ranges: Vec<Range<u64>>, maps: Vec<Vec<Line>>) -> Vec<Range<u64>
             // println!("answer exists: {}", answer.len());
             answer
         })
-        .collect::<Vec<Vec<Range<u64>>>>()
+        .collect::<Vec<Vec<Range<i64>>>>()
         .iter()
         .fold(vec![], |mut acc, range_vec| {
             range_vec.iter().for_each(|range| acc.push(range.clone()));
@@ -183,14 +152,28 @@ fn process(seed_ranges: Vec<Range<u64>>, maps: Vec<Vec<Line>>) -> Vec<Range<u64>
             acc
         })
 }
-
 //like intersect but returns all intersections
-fn split(seed_range: &Range<u64>, map: Vec<Line>) -> Vec<Range<u64>> {
-    let mut result: Vec<Range<u64>> = vec![];
-    map.iter().for_each(|line| {
+fn split(seed_range: &Range<i64>, map: Vec<Line>) -> Vec<Range<i64>> {
+    let mut result: Vec<Range<i64>> = vec![];
+    let mut prev: Vec<Range<i64>> = vec![];
+    map.iter().enumerate().for_each(|(i, line)| {
         let mut intersection = intersect(&line.source_range, seed_range);
+        if i != 0 && prev.len() > 1 {
+            intersection = prev.pop().unwrap();
+        }
 
         if !intersection.is_empty() {
+            if intersection.start == line.source_range.start {
+                if !(intersection.end..line.source_range.end).is_empty() {
+                    prev.push(intersection.end..line.source_range.end);
+                    println!("true");
+                }
+            } else if intersection.end == line.source_range.end {
+                if !(line.source_range.start..intersection.start).is_empty() {
+                    prev.push(line.source_range.start..intersection.start);
+                    println!("also true");
+                }
+            }
             //shift the intersection
             match line.source_range.start < line.destination_range.start {
                 true => {
@@ -202,27 +185,138 @@ fn split(seed_range: &Range<u64>, map: Vec<Line>) -> Vec<Range<u64>> {
                     intersection.end -= line.source_range.end - line.destination_range.end;
                 }
             }
-            result.push(intersection);
+            prev.push(intersection);
         }
     });
+    result = prev;
     result
 }
 
-fn intersect(a: &Range<u64>, b: &Range<u64>) -> Range<u64> {
+fn intersect(a: &Range<i64>, b: &Range<i64>) -> Range<i64> {
     max(a.start, b.start)..min(a.end, b.end)
 }
 
-fn min(a: u64, b: u64) -> u64 {
+fn min(a: i64, b: i64) -> i64 {
     if a > b {
         b
     } else {
         a
     }
 }
-fn max(a: u64, b: u64) -> u64 {
+fn max(a: i64, b: i64) -> i64 {
     if a < b {
         b
     } else {
         a
     }
 }
+// fn process(seed_ranges: Vec<Range<i64>>, maps: Vec<Vec<Line>>) -> Vec<Range<i64>> {
+//     // let mut answer: Vec<Range<i64>> = vec![];
+//     maps.iter()
+//         .map(|map| {
+//             let mut answer: Vec<Range<i64>> = vec![];
+//             seed_ranges.iter().for_each(|seed_range| {
+//                 let intersections = remap(seed_range, map);
+//                 intersections.iter().for_each(|intersection| {
+//                     answer.push(intersection.clone());
+//                 });
+//             });
+//             answer
+//         })
+//         .collect::<Vec<Vec<Range<i64>>>>()
+//         .iter()
+//         .fold(vec![], |mut acc, range_vec| {
+//             range_vec.iter().for_each(|range| acc.push(range.clone()));
+//             acc
+//         })
+// }
+
+// //maps the seed range through a map
+// fn remap(seed_range: &Range<i64>, map: &Vec<Line>) -> Vec<Range<i64>> {
+//     map.iter().enumerate().fold(vec![], |mut acc, (i, line)| {
+//         if i == 0 {
+//             acc = split(seed_range, &line.source_range);
+//         }
+//         let mut temp = acc.clone();
+//         acc.iter()
+//             .for_each(|range| temp = split(range, &line.source_range));
+//         acc.clear();
+//         acc = temp;
+//         match acc.len() {
+//             0 => {
+//                 //0 intersections
+//                 if i == map.len() - 1 {
+//                     acc.push(seed_range.clone());
+//                     return acc;
+//                 }
+//                 println!("shouldnt happen");
+//             }
+//             1 => {
+//                 //the intersection is equal to a
+//                 let maps_up = line.source_range.start < line.destination_range.start;
+//                 let delta = if maps_up {
+//                     line.destination_range.start - line.source_range.start
+//                 } else {
+//                     line.source_range.start - line.destination_range.start
+//                 };
+//                 if maps_up {
+//                     //shift the intersection
+//                     acc[0].start += delta;
+//                     acc[0].end += delta;
+//                 } else {
+//                     acc[0].start -= delta;
+//                     acc[0].end -= delta;
+//                 }
+//                 println!("shouldnt happen");
+//             }
+//             2 => {
+//                 //normal
+//                 //intersection is acc[1] and remainder is acc[0]
+//                 println!("should happen");
+//                 let maps_up = line.source_range.start < line.destination_range.start;
+//                 let delta = if maps_up {
+//                     line.destination_range.start - line.source_range.start
+//                 } else {
+//                     line.source_range.start - line.destination_range.start
+//                 };
+//                 if maps_up {
+//                     //shift the intersection
+//                     acc[1].start += delta;
+//                     acc[1].end += delta;
+//                 } else {
+//                     acc[1].start -= delta;
+//                     acc[1].end -= delta;
+//                 }
+//             }
+//             other => println!("shouldnt happen at all, len is {other}"),
+//         }
+//         acc
+//     })
+// }
+//
+// //returns the intersection of a and b as the second item in the vec
+//
+// //and also the rest of a
+// fn split(a: &Range<i64>, b: &Range<i64>) -> Vec<Range<i64>> {
+//     let intersection_start = max(a.start, b.start);
+//     let intersection_end = min(a.end, b.end);
+//
+//     let mut result: Vec<Range<i64>> = vec![];
+//     if (intersection_start..intersection_end).is_empty() {
+//         return result;
+//     }
+//     if intersection_start == a.start {
+//         //a is bigger
+//         if !(intersection_end..a.end).is_empty() {
+//             result.push(intersection_end..a.end);
+//         }
+//         result.push(intersection_start..intersection_end);
+//     } else {
+//         //a is smaller
+//         if !(a.start..intersection_start).is_empty() {
+//             result.push(a.start..intersection_start);
+//         }
+//         result.push(intersection_start..intersection_end);
+//     }
+//     result
+// }
