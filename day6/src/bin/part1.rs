@@ -4,7 +4,6 @@ Distance:  9  40  200";
 
     let result = answer(test_input);
 
-    //46
     if result == 288 {
         println!("test success! Here\'s the answer:");
         println!("{}", answer(include_str!("../../input.txt")))
