@@ -1,5 +1,5 @@
 use core::panic;
-use std::{collections::BTreeMap, i32, thread::park};
+use std::{char, collections::BTreeMap, i32};
 
 fn main() {
     let test_input = "32T3K 765
@@ -9,8 +9,8 @@ KTJJT 220
 QQQJA 483";
 
     let result = answer(test_input);
-    //6440
-    if result == 6440 {
+    //
+    if result == 5905 {
         println!("test success! Here\'s the answer:");
         println!("{}", answer(include_str!("../../input.txt")))
     } else {
@@ -24,7 +24,7 @@ fn score_card(a: char) -> i32 {
         'A' => 14,
         'K' => 13,
         'Q' => 12,
-        'J' => 11,
+        'J' => 1,
         'T' => 10,
         value => value.to_digit(10).unwrap() as i32,
     }
@@ -40,7 +40,7 @@ enum HandType {
     OnePair = 1,
     HighCard = 0,
 }
-#[derive(Debug, Eq, PartialEq, PartialOrd)]
+#[derive(Debug)]
 struct Hand {
     hand_type: HandType,
     string: String,
@@ -48,13 +48,31 @@ struct Hand {
 }
 impl Hand {
     fn new(hand_str: &str, bid: i32) -> Hand {
-        let mut seen_cards: BTreeMap<char, i32> = BTreeMap::new();
-        let mut final_type = HandType::FiveOfAKind;
-        for card in hand_str.chars() {
-            *seen_cards.entry(card).or_insert(0) += 1;
+        //no jokers
+        let mut seen_normal_cards: BTreeMap<char, i32> = BTreeMap::new();
+        for card in hand_str.chars().filter(|character| character != &'J') {
+            *seen_normal_cards.entry(card).or_insert(0) += 1;
         }
-        let mut counts: Vec<i32> = seen_cards.values().cloned().collect::<Vec<i32>>();
+        let jokers: i32 = hand_str
+            .chars()
+            .filter(|character| character == &'J')
+            .count() as i32;
+        let final_type;
+        let mut counts: Vec<i32> = seen_normal_cards.values().cloned().collect::<Vec<i32>>();
         counts.sort_unstable();
+        if jokers != 5 {
+            match counts.last_mut() {
+                Some(value) => *value += jokers,
+                None => println!("weird card: {hand_str}"),
+            }
+        } else {
+            if counts.is_empty() {
+                counts.push(5);
+            } else {
+                println!("weird card: {hand_str}");
+            }
+        }
+
         let string = counts
             .iter()
             .map(|count| count.to_string())
@@ -96,33 +114,20 @@ fn answer(input: &str) -> i32 {
         .collect::<Vec<Hand>>();
 
     hands.sort_by_key(|hand| (hand.hand_type, hand.score_hand()));
-    for (i, hand) in hands.iter().enumerate() {
-        println!("Hand: {}", hand.string);
-        println!("Hand bid: {}", hand.bid);
-        println!("Hand type: {:?}", hand.hand_type);
-        println!("Hand rank: {}", i + 1);
-        println!("-------------------------");
-    }
+    // for (i, hand) in hands.iter().enumerate() {
+    //     println!("Hand: {}", hand.string);
+    //     println!("Hand bid: {}", hand.bid);
+    //     println!("Hand type: {:?}", hand.hand_type);
+    //     println!("Hand rank: {}", i + 1);
+    //     println!("-------------------------");
+    // }
     let result = hands
         .iter()
         .enumerate()
-        .map(|(line, hand)| hand.bid * (line as i32 + 1))
+        .map(|(line, hand)| {
+            println!("{}, {:?}", hand.string, hand.hand_type);
+            hand.bid * (line as i32 + 1)
+        })
         .sum::<i32>();
     result
-}
-
-impl Ord for Hand {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        for (card_self, card_other) in self.string.chars().zip(other.string.chars()) {
-            // println!("{card_self}, other: {card_other}");
-            if score_card(card_self) < score_card(card_other) {
-                return std::cmp::Ordering::Greater;
-            } else if score_card(card_self) > score_card(card_other) {
-                return std::cmp::Ordering::Less;
-            } else {
-                continue;
-            }
-        }
-        return std::cmp::Ordering::Equal;
-    }
 }
