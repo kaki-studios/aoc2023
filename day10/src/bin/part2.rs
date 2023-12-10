@@ -1,18 +1,27 @@
 fn main() {
-    let test_input1 = "-L|F7
-7S-7|
-L|7||
--L-J|
-L|-JF";
+    let test_input1 = "..........
+.S------7.
+.|F----7|.
+.||OOOO||.
+.||OOOO||.
+.|L-7F-J|.
+.|II||II|.
+.L--JL--J.
+..........";
 
     let result1 = answer(test_input1);
     assert_eq!(result1, 4);
     println!("1st test success!");
-    let test_input2 = "7-F7-
-.FJ|7
-SJLL7
-|F--J
-LJ.LJ";
+    let test_input2 = ".F----7F7F7F7F-7....
+.|F--7||||||||FJ....
+.||.FJ||||||||L7....
+FJL7L7LJLJ||LJ.L-7..
+L--J.L7...LJS7F-7L7.
+....F-J..F7FJ|L7L7L7
+....L7.F7||L7|.L7L7|
+.....|FJLJ|FJ|F7|.LJ
+....FJL-7.||.||||...
+....L---J.LJ.LJLJ...";
     let result2 = answer(test_input2);
     assert_eq!(result2, 8);
     println!("2nd test success! Here\'s the answer:");
@@ -35,8 +44,7 @@ fn answer(input: &str) -> i32 {
     }
 
     let mut current_pos = starting_point;
-    //start at 1 because starting_point should be counted too
-    let mut pipe_count = 1;
+    let mut pipe_indices: Vec<(usize, usize)> = vec![starting_point];
     let mut curr_dir: Direction = {
         let up = char_plane[current_pos.0 - 1][current_pos.1];
         if up == 'F' || up == '|' || up == '7' {
@@ -60,14 +68,11 @@ fn answer(input: &str) -> i32 {
             }
         }
     };
+    println!("going to: {:?}", curr_dir);
     loop {
-        if current_pos == starting_point && pipe_count != 1 {
-            break;
-        }
-        println!(
-            "{}, {:?}, {:?}",
-            char_plane[current_pos.0][current_pos.1], curr_dir, current_pos
-        );
+        // if current_pos == starting_point && pipe_indices.len() > 1 {
+        //     break;
+        // }
         match curr_dir {
             Direction::Up => {
                 let top = current_pos.0 == 0;
@@ -85,12 +90,10 @@ fn answer(input: &str) -> i32 {
                     }
                     if up == 'F' || up == '|' || up == '7' {
                         current_pos.0 -= 1;
-                        pipe_count += 1;
-                        println!("{:?}", char_plane);
-
+                        pipe_indices.push(current_pos);
                         continue;
                     } else if up == 'S' {
-                        return pipe_count / 2;
+                        break;
                     }
                 }
             }
@@ -112,12 +115,10 @@ fn answer(input: &str) -> i32 {
                     }
                     if down == 'L' || down == '|' || down == 'J' {
                         current_pos.0 += 1;
-                        pipe_count += 1;
-
-                        println!("{:?}", char_plane);
+                        pipe_indices.push(current_pos);
                         continue;
                     } else if down == 'S' {
-                        return pipe_count / 2;
+                        break;
                     }
                 }
             }
@@ -139,11 +140,10 @@ fn answer(input: &str) -> i32 {
                     }
                     if left == 'F' || left == 'L' || left == '-' {
                         current_pos.1 -= 1;
-                        pipe_count += 1;
-                        println!("{:?}", char_plane);
+                        pipe_indices.push(current_pos);
                         continue;
                     } else if left == 'S' {
-                        return pipe_count / 2;
+                        break;
                     }
                 }
             }
@@ -165,11 +165,10 @@ fn answer(input: &str) -> i32 {
                     }
                     if right == '-' || right == 'J' || right == '7' {
                         current_pos.1 += 1;
-                        pipe_count += 1;
-                        println!("{:?}", char_plane);
+                        pipe_indices.push(current_pos);
                         continue;
                     } else if right == 'S' {
-                        return pipe_count / 2;
+                        break;
                     }
                 }
             }
@@ -177,9 +176,32 @@ fn answer(input: &str) -> i32 {
     }
     println!("{:?}", char_plane[starting_point.0][starting_point.1]);
 
-    pipe_count / 2
+    println!("gathered the pipe_indices!");
+
+    println!("{:?}", pipe_indices);
+    let area = char_plane
+        .iter()
+        .enumerate()
+        .map(|(y, line)| {
+            let mut inside = false;
+            line.iter()
+                .enumerate()
+                .filter(|(x, ch)| {
+                    if pipe_indices.contains(&(y, *x)) {
+                        if ['S', '|', 'F', '7'].contains(ch) {
+                            inside = !inside;
+                        };
+                        false
+                    } else {
+                        inside
+                    }
+                })
+                .count()
+        })
+        .sum::<usize>();
+    area as i32
 }
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 enum Direction {
     Up,
     Down,
