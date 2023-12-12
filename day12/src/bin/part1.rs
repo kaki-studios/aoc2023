@@ -13,7 +13,7 @@ fn main() {
     println!("Test success! Here\'s the answer:");
     println!("{}", answer(include_str!("../../input.txt")));
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 enum SpringStatus {
     Operational,
     Damaged,
@@ -25,9 +25,19 @@ fn answer(input: &str) -> i32 {
         .lines()
         .map(|line| line.split_once(" ").unwrap().0)
         .collect();
-    let lists: Vec<&str> = input
+    let lists_str: Vec<&str> = input
         .lines()
         .map(|line| line.split_once(" ").unwrap().1)
+        .collect();
+    let lists_vec: Vec<Vec<i32>> = lists_str
+        .iter()
+        .map(|line| {
+            line.split(",")
+                .collect::<Vec<&str>>()
+                .iter()
+                .map(|num| num.parse().unwrap())
+                .collect::<Vec<i32>>()
+        })
         .collect();
     let springs_vec: Vec<Vec<SpringStatus>> = springs_str
         .iter()
@@ -42,9 +52,9 @@ fn answer(input: &str) -> i32 {
                 .collect()
         })
         .collect();
-    dbg!(springs_vec.clone(), lists);
+    dbg!(springs_vec.clone(), lists_str);
 
-    for springs in springs_vec {
+    for (springs, lists) in springs_vec.iter().zip(lists_vec) {
         let mut unknown_ranges_ids: Vec<usize> = vec![];
         for (i, spring_pair) in springs.windows(2).enumerate() {
             if i == 0 && spring_pair[0] == SpringStatus::Unknown {
@@ -78,6 +88,38 @@ fn answer(input: &str) -> i32 {
         dbg!(unknown_ranges);
         //TODO: we have the ranges, nothing else, at 80 loc
         //this might take a while...
+        // let needed_nums = lists.iter().filter(|id| {
+        //     // if springs.iter().fold(id, |mut acc, status| {
+        //     //     if status == &SpringStatus::Operational {
+        //     //         **acc -= 1;
+        //     //     }
+        //     //     acc
+        //     // }) < &&0
+        //     // {
+        //     //     true
+        //     // } else {
+        //     //     false
+        //     // }
+        //     let mut count = **id
+        //     for status in springs {
+        //         if status == &SpringStatus::Operational {
+        //             count -= 1;
+        //         }
+        //     }
+        //     if count
+        // });
+        // let needed_nums: Vec<i32> = {
+        //     let operationals: Vec<SpringStatus> = springs
+        //         .iter()
+        //         .partition(|spring| **spring == SpringStatus::Operational)
+        //         .0;
+        //     lists.iter().map(|num| {
+        //         if !.iter().enumerate().any(|(i, spring)| {
+        //             //FUUUUCK THIS MAKES NO SENSE!!
+        //         })
+        //     })
+        // };
+        // dbg!(needed_nums);
     }
 
     0
