@@ -1,4 +1,6 @@
-use std::{i32, ops::Range, usize};
+//NOTE: WILL NOT WORK IN REASONABLE AMOUNT OF TIME!
+
+use std::{i32, usize};
 
 fn main() {
     let test_input1 = "???.### 1,1,3
@@ -17,7 +19,7 @@ fn main() {
     // let test_matches = matches(&test_springs, &vec![2, 1]);
     // assert!(test_matches);
     let result1 = answer(test_input1);
-    assert_eq!(result1, 21);
+    assert_eq!(result1, 525152);
     println!("Test success! Here\'s the answer:");
     println!("{}", answer(include_str!("../../input.txt")));
 }
@@ -37,7 +39,7 @@ fn answer(input: &str) -> i64 {
         .lines()
         .map(|line| line.split_once(" ").unwrap().1)
         .collect();
-    let lists_vec: Vec<Vec<i32>> = lists_str
+    let mut lists_vec: Vec<Vec<i32>> = lists_str
         .iter()
         .map(|line| {
             line.split(",")
@@ -60,8 +62,10 @@ fn answer(input: &str) -> i64 {
                 .collect()
         })
         .collect();
+    lists_vec = unfold_lists(lists_vec);
+    springs_vec = unfold_springs(springs_vec);
     let mut answer: i64 = 0;
-    for (springs, lists) in springs_vec.iter_mut().zip(lists_vec) {
+    for (i, (springs, lists)) in springs_vec.iter().zip(lists_vec).enumerate() {
         //heres the main juice of the program
         let num_of_unknowns = springs
             .iter()
@@ -70,6 +74,13 @@ fn answer(input: &str) -> i64 {
         let max = 2_i64.pow(num_of_unknowns as u32);
         dbg!(max);
         for curr in 0..max {
+            println!("-------------------------");
+            println!("{}", curr as f32 / max as f32);
+            println!("of");
+            println!("{}", i as f32 / springs.clone().len() as f32);
+            println!("answers: {}", answer);
+            println!("-------------------------");
+            print!("\x1B[2J\x1B[1;1H"); //clears screen
             let mut curr_state = format!("{:b}", curr).chars().rev().collect::<Vec<char>>();
             if curr_state.len() < num_of_unknowns {
                 curr_state.extend("0".repeat(num_of_unknowns - curr_state.len()).chars());
@@ -134,4 +145,20 @@ fn get_springs(springs: &Vec<SpringStatus>, status: SpringStatus) -> Vec<usize> 
     }
     // dbg!(spring_ranges_ids.len() % 2 == 0);
     spring_ids
+}
+
+fn unfold_springs(mut springs_vec: Vec<Vec<SpringStatus>>) -> Vec<Vec<SpringStatus>> {
+    for springs in springs_vec.iter_mut() {
+        springs.push(SpringStatus::Unknown);
+        *springs = springs.repeat(5);
+        springs.pop();
+    }
+    springs_vec
+}
+
+fn unfold_lists(mut lists_vec: Vec<Vec<i32>>) -> Vec<Vec<i32>> {
+    for list in lists_vec.iter_mut() {
+        *list = list.repeat(5);
+    }
+    lists_vec
 }
