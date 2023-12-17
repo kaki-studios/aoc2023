@@ -1,4 +1,5 @@
 //TODO: make it work (and optimize it)
+//NOTE: not done!
 
 use std::usize;
 
@@ -13,8 +14,8 @@ O.#..O.#.#
 .......O..
 #....###..
 #OO..#....";
-    let result1 = answer(test_input1, 1);
-    assert!(result1 == 87);
+    let result1 = answer(test_input1, 1_000_000_000);
+    assert!(result1 == 64);
     println!("Test success! Here\'s the answer:");
     let answer = answer(include_str!("../../input.txt"), 1_000_000_000);
     println!("{}", answer);
@@ -94,17 +95,16 @@ fn answer(input: &str, cycles: i32) -> u32 {
         }
         println!("");
     }
-    let mut answer = 0;
-    let len = columns[0].len();
-    for rock in shifted_rocks {
-        let load = len - rock.1;
-        dbg!(&load);
-        answer += load as i32;
-    }
 
     calculate_load(shifted_rocks, columns[0].len())
 }
 
 fn calculate_load(input: Vec<(usize, usize)>, height: usize) -> u32 {
-    0
+    let mut answer = 0;
+    for rock in input {
+        let load = height - rock.1;
+        dbg!(&load);
+        answer += load as u32;
+    }
+    answer
 }
