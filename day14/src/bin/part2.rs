@@ -1,3 +1,5 @@
+//TODO: make it work (and optimize it)
+
 use std::usize;
 
 fn main() {
@@ -11,13 +13,14 @@ O.#..O.#.#
 .......O..
 #....###..
 #OO..#....";
-    let result1 = answer(test_input1);
-    assert_eq!(result1, 136);
+    let result1 = answer(test_input1, 1);
+    assert!(result1 == 87);
     println!("Test success! Here\'s the answer:");
-    println!("{}", answer(include_str!("../../input.txt")));
+    let answer = answer(include_str!("../../input.txt"), 1_000_000_000);
+    println!("{}", answer);
 }
 
-fn answer(input: &str) -> i32 {
+fn answer(input: &str, cycles: i32) -> u32 {
     let rows = input
         .lines()
         .map(|line| line.chars().collect::<Vec<char>>())
@@ -99,5 +102,9 @@ fn answer(input: &str) -> i32 {
         answer += load as i32;
     }
 
-    answer
+    calculate_load(shifted_rocks, columns[0].len())
+}
+
+fn calculate_load(input: Vec<(usize, usize)>, height: usize) -> u32 {
+    0
 }
